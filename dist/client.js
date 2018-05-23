@@ -1,4 +1,4 @@
-/*! airbrake-js v1.1.0 */
+/*! airbrake-js v1.1.1 */
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
 		module.exports = factory();
@@ -293,15 +293,18 @@ var define = false;
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
-/* WEBPACK VAR INJECTION */(function(global) {var apply = Function.prototype.apply;
+/* WEBPACK VAR INJECTION */(function(global) {var scope = (typeof global !== "undefined" && global) ||
+            (typeof self !== "undefined" && self) ||
+            window;
+var apply = Function.prototype.apply;
 
 // DOM APIs, for completeness
 
 exports.setTimeout = function() {
-  return new Timeout(apply.call(setTimeout, window, arguments), clearTimeout);
+  return new Timeout(apply.call(setTimeout, scope, arguments), clearTimeout);
 };
 exports.setInterval = function() {
-  return new Timeout(apply.call(setInterval, window, arguments), clearInterval);
+  return new Timeout(apply.call(setInterval, scope, arguments), clearInterval);
 };
 exports.clearTimeout =
 exports.clearInterval = function(timeout) {
@@ -316,7 +319,7 @@ function Timeout(id, clearFn) {
 }
 Timeout.prototype.unref = Timeout.prototype.ref = function() {};
 Timeout.prototype.close = function() {
-  this._clearFn.call(window, this._id);
+  this._clearFn.call(scope, this._id);
 };
 
 // Does not start the time, just sets up the members needed.
@@ -344,7 +347,7 @@ exports._unrefActive = exports.active = function(item) {
 
 // setimmediate attaches itself to the global object
 __webpack_require__(/*! setimmediate */ "./node_modules/setimmediate/setImmediate.js");
-// On some exotic environments, it's not clear which object `setimmeidate` was
+// On some exotic environments, it's not clear which object `setimmediate` was
 // able to install onto.  Search each possibility in the same order as the
 // `setimmediate` library.
 exports.setImmediate = (typeof self !== "undefined" && self.setImmediate) ||
@@ -1132,7 +1135,7 @@ var Client = /** @class */ (function () {
                 severity: 'error',
                 notifier: {
                     name: 'airbrake-js',
-                    version: "1.1.0",
+                    version: "1.1.1",
                     url: 'https://github.com/airbrake/airbrake-js',
                 },
             }, err.context),
@@ -1150,8 +1153,8 @@ var Client = /** @class */ (function () {
             var filter = _a[_i];
             var r = filter(notice);
             if (r === null) {
-                var reason = new Error('airbrake: error is filtered');
-                return Promise.reject(reason);
+                // airbrake was filtered. this is a feature, not an error.
+                return Promise.resolve({ errors: [] });
             }
             notice = r;
         }
@@ -1524,7 +1527,8 @@ var Historian = /** @class */ (function () {
                 _this.notify(err).then(exit).catch(exit);
             });
             p.on('unhandledRejection', function (reason, _p) {
-                _this.notify(reason);
+                // ignore notify errors which will just cause more unhandledRejection errors
+                _this.notify(reason).catch(function (_) { });
             });
         }
         if (typeof console === 'object') {
